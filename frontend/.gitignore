@@ -1,0 +1,17 @@
+# Node modules (BIGGEST one)
+frontend/node_modules/
+
+# Build output
+frontend/dist/
+
+# Vite cache
+frontend/.vite/
+
+# Logs
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# Env files
+frontend/.env
+frontend/.env.*
