@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.agent.runner import AgentRunner
-from app.api.chat_router  import chat_router
+from app.api.chat_router import chat_router
 from app.core.config import settings
 from app.core.logging import configure_logging
 from app.dependencies import set_chat_service

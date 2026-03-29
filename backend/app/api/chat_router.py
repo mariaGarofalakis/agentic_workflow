@@ -13,6 +13,7 @@ chat_router = APIRouter(prefix="/chat", tags=["chat"])
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=4000)
 
+
 @chat_router.post("/stream")
 async def chat_stream(
     payload: ChatRequest,

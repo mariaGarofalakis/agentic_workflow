@@ -3,7 +3,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from app.providers.openai_responses import OpenAIResponsesClient, safe_json_dumps
-from backend.app.tools.core.registry import ToolRegistry
+from app.tools.core.registry import ToolRegistry
 
 
 class AgentRunner:
@@ -18,32 +18,17 @@ class AgentRunner:
         self.registry = registry
         self.max_tool_iterations = max_tool_iterations
         self.stream_text = stream_text
+        self.final_response_id: str | None = None
 
-    async def run(self, user_input: str) -> str:
-        response = await self.llm.create_response(
-            input_data=user_input,
-            tools=self.registry.schemas,
-        )
-
-        for _ in range(self.max_tool_iterations):
-            tool_outputs = await self._collect_tool_outputs(response)
-            if not tool_outputs:
-                return getattr(response, "output_text", "")
-
-            response = await self.llm.create_response(
-                input_data=tool_outputs,
-                tools=self.registry.schemas,
-                previous_response_id=response.id,
-            )
-
-        raise RuntimeError("Agent exceeded max tool iterations")
-
-    async def run_stream(self, user_input: str) -> AsyncIterator[str]:
+    async def run_stream(
+        self, user_input: str, previous_response_id: str | None = None
+    ) -> AsyncIterator[str]:
         response = None
+        
 
         async for event in self._stream_turn_and_get_response(
             input_data=user_input,
-            previous_response_id=None,
+            previous_response_id=previous_response_id,
         ):
             if event["type"] == "chunk":
                 yield event["content"]
@@ -56,6 +41,7 @@ class AgentRunner:
         for _ in range(self.max_tool_iterations):
             tool_outputs = await self._collect_tool_outputs(response)
             if not tool_outputs:
+                self.final_response_id = response.id
                 return
 
             previous_response_id = response.id
@@ -72,7 +58,9 @@ class AgentRunner:
 
             if response is None:
                 raise RuntimeError("No response returned from streamed tool turn")
-            
+
+        self.final_response_id = response.id
+
     async def _stream_turn_and_get_response(
         self,
         input_data: str | list[dict[str, Any]],

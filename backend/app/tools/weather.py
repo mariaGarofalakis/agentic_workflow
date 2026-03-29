@@ -77,7 +77,7 @@ def register_weather_tool(registry: ToolRegistry) -> None:
             return {
                 "ok": True,
                 "data": {
-                    "location": f'{place["name"]}, {place.get("country", "")}'.strip(", "),
+                    "location": f"{place['name']}, {place.get('country', '')}".strip(", "),
                     "latitude": lat,
                     "longitude": lon,
                     "temperature": current.get("temperature_2m"),

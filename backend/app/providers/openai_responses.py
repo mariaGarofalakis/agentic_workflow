@@ -62,7 +62,8 @@ class OpenAIResponsesClient:
             async for _ in stream:
                 pass
             return await stream.get_final_response()
-        
+
+
 def safe_json_dumps(value: Any) -> str:
     def serializer(obj: Any) -> str:
         if isinstance(obj, (datetime, date)):
