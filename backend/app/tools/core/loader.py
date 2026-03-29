@@ -1,4 +1,4 @@
-from app.tools.registry import ToolRegistry
+from app.tools.core.registry import ToolRegistry
 from app.tools.weather import register_weather_tool
 
 

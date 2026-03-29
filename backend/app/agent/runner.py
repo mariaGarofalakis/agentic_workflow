@@ -3,7 +3,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from app.providers.openai_responses import OpenAIResponsesClient, safe_json_dumps
-from app.tools.registry import ToolRegistry
+from backend.app.tools.core.registry import ToolRegistry
 
 
 class AgentRunner:

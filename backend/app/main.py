@@ -10,7 +10,7 @@ from app.core.logging import configure_logging
 from app.dependencies import set_chat_service
 from app.providers.openai_responses import OpenAIResponsesClient
 from app.services.chat_service import ChatService
-from app.tools.loader import build_registry
+from app.tools.core.loader import build_registry
 
 # Initialize logging
 configure_logging()

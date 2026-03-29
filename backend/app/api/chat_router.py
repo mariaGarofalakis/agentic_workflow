@@ -4,11 +4,14 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
 from app.dependencies import get_chat_service
-from app.schemas.chat import ChatRequest, ChatResponse
 from app.services.chat_service import ChatService
+from pydantic import BaseModel, Field
 
 chat_router = APIRouter(prefix="/chat", tags=["chat"])
 
+
+class ChatRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=4000)
 
 @chat_router.post("/stream")
 async def chat_stream(

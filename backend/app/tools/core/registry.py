@@ -1,10 +1,21 @@
 import inspect
 import logging
 from typing import Any
+from dataclasses import dataclass
+from typing import Any, Awaitable, Callable
 
-from app.tools.base import RegisteredTool, ToolHandler
 
 logger = logging.getLogger(__name__)
+
+
+ToolHandler = Callable[..., Awaitable[Any]]
+
+
+@dataclass(slots=True)
+class RegisteredTool:
+    name: str
+    schema: dict[str, Any]
+    handler: ToolHandler
 
 
 class ToolRegistry:

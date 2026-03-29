@@ -1,7 +1,7 @@
 import httpx
 from typing import Any
 
-from app.tools.registry import ToolRegistry
+from app.tools.core.registry import ToolRegistry
 
 
 def register_weather_tool(registry: ToolRegistry) -> None:
