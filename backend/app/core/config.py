@@ -24,5 +24,19 @@ class Settings(BaseSettings):
 
     frontend_origin: str = Field(default="http://localhost:5173", alias="FRONTEND_ORIGIN")
 
+    auth_enabled: bool = False
+    dev_user_id: str = "dev-user-0001"
+    dev_user_email: str = "dev@example.com"
+
+    database_url: str = Field(default="sqlite+aiosqlite:///./dev.db", alias="DATABASE_URL")
+
+    @property
+    def is_sqlite(self) -> bool:
+        return self.database_url.startswith("sqlite+")
+
+    @property
+    def is_postgres(self) -> bool:
+        return self.database_url.startswith("postgresql+")
+
 
 settings = Settings()

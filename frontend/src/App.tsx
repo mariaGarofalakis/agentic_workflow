@@ -1,11 +1,9 @@
 import { useState } from "react";
 import { streamMessage } from "./api/chat";
+import { createConversation } from "./api/conversations";
+import { Message } from "./types/chat";
 
-type Message = {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-};
+
 
 function createMessage(role: Message["role"], content: string): Message {
   return {
@@ -21,6 +19,17 @@ export default function App() {
   ]);
   const [value, setValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+
+  async function ensureConversationId(): Promise<string> {
+    if (conversationId) {
+      return conversationId;
+    }
+
+    const newConversationId = await createConversation("New chat");
+    setConversationId(newConversationId);
+    return newConversationId;
+  }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -40,7 +49,10 @@ export default function App() {
     setIsLoading(true);
 
     try {
+      const activeConversationId = await ensureConversationId();
+
       await streamMessage(
+        activeConversationId,
         trimmed,
         (chunk) => {
           setMessages((prev) =>

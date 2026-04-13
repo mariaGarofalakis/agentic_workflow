@@ -2,15 +2,16 @@ import json
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
 
 from app.dependencies import get_chat_service
 from app.services.chat_service import ChatService
-from pydantic import BaseModel, Field
 
 chat_router = APIRouter(prefix="/chat", tags=["chat"])
 
 
 class ChatRequest(BaseModel):
+    conversation_id: str = Field(min_length=1, max_length=36)
     message: str = Field(min_length=1, max_length=4000)
 
 
@@ -21,10 +22,11 @@ async def chat_stream(
 ) -> StreamingResponse:
     async def event_generator():
         try:
-            async for chunk in service.reply_stream(payload.message):
-                yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
-
-            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            async for event in service.reply_stream(
+                conversation_id=payload.conversation_id,
+                message=payload.message,
+            ):
+                yield f"data: {json.dumps(event)}\n\n"
 
         except Exception as exc:
             yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"

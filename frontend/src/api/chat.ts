@@ -1,6 +1,7 @@
-const API_BASE_URL = "http://localhost:8000/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api";
 
 export async function streamMessage(
+  conversationId: string,
   message: string,
   onChunk: (chunk: string) => void,
   onDone: () => void,
@@ -11,7 +12,10 @@ export async function streamMessage(
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({
+      conversation_id: conversationId,
+      message,
+    }),
   });
 
   if (!response.ok || !response.body) {

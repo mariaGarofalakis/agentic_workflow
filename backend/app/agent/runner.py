@@ -18,20 +18,20 @@ class AgentRunner:
         self.registry = registry
         self.max_tool_iterations = max_tool_iterations
         self.stream_text = stream_text
-        self.final_response_id: str | None = None
 
     async def run_stream(
-        self, user_input: str, previous_response_id: str | None = None
-    ) -> AsyncIterator[str]:
+        self,
+        user_input: str,
+        previous_response_id: str | None = None,
+    ) -> AsyncIterator[dict[str, Any]]:
         response = None
-        
 
         async for event in self._stream_turn_and_get_response(
             input_data=user_input,
             previous_response_id=previous_response_id,
         ):
             if event["type"] == "chunk":
-                yield event["content"]
+                yield event
             elif event["type"] == "final_response":
                 response = event["response"]
 
@@ -41,25 +41,31 @@ class AgentRunner:
         for _ in range(self.max_tool_iterations):
             tool_outputs = await self._collect_tool_outputs(response)
             if not tool_outputs:
-                self.final_response_id = response.id
+                yield {
+                    "type": "completed",
+                    "final_response_id": response.id,
+                }
                 return
 
-            previous_response_id = response.id
+            current_response_id = response.id
             response = None
 
             async for event in self._stream_turn_and_get_response(
                 input_data=tool_outputs,
-                previous_response_id=previous_response_id,
+                previous_response_id=current_response_id,
             ):
                 if event["type"] == "chunk":
-                    yield event["content"]
+                    yield event
                 elif event["type"] == "final_response":
                     response = event["response"]
 
             if response is None:
                 raise RuntimeError("No response returned from streamed tool turn")
 
-        self.final_response_id = response.id
+        yield {
+            "type": "completed",
+            "final_response_id": response.id,
+        }
 
     async def _stream_turn_and_get_response(
         self,
