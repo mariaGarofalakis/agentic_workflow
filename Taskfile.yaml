@@ -1,0 +1,29 @@
+version: "3"
+
+vars:
+  DATABASE_URL: "sqlite+aiosqlite:///./dev.db"
+
+tasks:
+  run:backend:
+    desc: Start the FastAPI backend locally with sqlite
+    dir: backend
+    env:
+      DATABASE_URL: "{{.DATABASE_URL}}"
+    cmds:
+      - uv run alembic upgrade head
+      - uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  run:frontend: # http://localhost:5173
+    desc: Start the Vite dev server
+    dir: frontend
+    env:
+      VITE_API_BASE_URL: "http://localhost:8000/api"
+    cmds:
+      - npm install
+      - npm run dev
+      
+  run:agentic_workflow:dev:
+    desc: Local execution of frontend and backend
+    deps:
+      - run:backend
+      - run:frontend
