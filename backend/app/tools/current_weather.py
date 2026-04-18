@@ -2,9 +2,9 @@ import httpx
 from typing import Any
 
 from app.tools.core.registry import ToolRegistry
+from app.tools.utils import geo_response
 
-
-def register_weather_tool(registry: ToolRegistry) -> None:
+def register_current_weather_tool(registry: ToolRegistry) -> None:
     @registry.register(
         {
             "type": "function",
@@ -31,34 +31,11 @@ def register_weather_tool(registry: ToolRegistry) -> None:
     async def get_current_weather(location: str, unit: str = "celsius") -> dict[str, Any]:
         temperature_unit = "fahrenheit" if unit == "fahrenheit" else "celsius"
 
+        lat,lon, place =  geo_response(location=location)
+
         try:
             async with httpx.AsyncClient(timeout=20.0) as client:
-                geo_response = await client.get(
-                    "https://geocoding-api.open-meteo.com/v1/search",
-                    params={
-                        "name": location,
-                        "count": 1,
-                        "language": "en",
-                        "format": "json",
-                    },
-                )
-                geo_response.raise_for_status()
-                geo_data = geo_response.json()
-
-                results = geo_data.get("results", [])
-                if not results:
-                    return {
-                        "ok": False,
-                        "error": {
-                            "type": "not_found",
-                            "message": f"Could not find location: {location}",
-                        },
-                    }
-
-                place = results[0]
-                lat = place["latitude"]
-                lon = place["longitude"]
-
+                
                 weather_response = await client.get(
                     "https://api.open-meteo.com/v1/forecast",
                     params={
