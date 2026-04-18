@@ -4,6 +4,3 @@ export type Message = {
   content: string;
 };
 
-export type ChatResponse = {
-  reply: string;
-};

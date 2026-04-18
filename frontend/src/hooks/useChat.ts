@@ -12,10 +12,9 @@ function createMessage(role: Message["role"], content: string): Message {
 }
 
 export function useChat() {
-    const [messages, setMessages] = useState<Message[]>([
+ const [messages, setMessages] = useState<Message[]>([
     createMessage("assistant", "Hi — ask me anything."),
   ]);
-  const [value, setValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
 
@@ -27,7 +26,7 @@ export function useChat() {
     const newConversationId = await createConversation("New chat");
     setConversationId(newConversationId);
     return newConversationId;
-    }
+ }
 
   async function sendMessage(text: string): Promise<void>{
 
@@ -73,7 +72,7 @@ export function useChat() {
           setIsLoading(false);
         }
       );
-    } catch (error) {
+    } catch {
       setMessages((prev) =>
         prev.map((message) =>
           message.id === assistantId
@@ -84,12 +83,5 @@ export function useChat() {
       setIsLoading(false);
     }
   }
-  return { messages, isLoading, sendMessage}
+  return { messages, isLoading, sendMessage }
 }
-
-
-
-
-
-
-
