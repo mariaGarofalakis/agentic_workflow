@@ -11,7 +11,6 @@ from app.api.conversation_router import conversation_router
 from app.api.user_router import user_router
 from app.core.config import settings
 from app.core.logging import configure_logging
-from app.dependencies import set_agent
 from app.providers.openai_responses import OpenAIResponsesClient
 from app.tools.core.loader import build_registry
 
@@ -38,7 +37,7 @@ async def lifespan(app: FastAPI):
         max_tool_iterations=settings.max_tool_iterations,
     )
 
-    set_agent(agent)
+    app.state.agent = agent
 
     # create local user for test localy
     if not settings.auth_enabled:
@@ -59,8 +58,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.frontend_origin],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 app.include_router(chat_router, prefix="/api")

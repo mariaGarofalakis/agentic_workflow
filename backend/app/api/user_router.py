@@ -16,6 +16,11 @@ class CreateUserResponse(BaseModel):
     email: EmailStr | None
 
 
+class ErrorDetailed(BaseModel):
+    code: str
+    message: str
+
+
 @user_router.post(
     "",
     response_model=CreateUserResponse,
@@ -30,7 +35,7 @@ async def create_user(
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=str(exc),
+            detail=ErrorDetailed(code="conflict", message=str(exc)).model_dump(),
         ) from exc
 
     return CreateUserResponse(

@@ -17,6 +17,12 @@ class CreateConversationResponse(BaseModel):
     user_id: str | None
     title: str | None
 
+class ErrorDetailed(BaseModel):
+    code: str
+    message: str
+
+
+
 
 @conversation_router.post(
     "",
@@ -35,7 +41,7 @@ async def create_conversation(
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
+            detail=ErrorDetailed(code="not_found", message=str(exc)).model_dump(),
         ) from exc
 
     return CreateConversationResponse(

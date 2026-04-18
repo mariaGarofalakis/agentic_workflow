@@ -1,8 +1,22 @@
-from app.tools.core.registry import ToolRegistry
-from app.tools.weather import register_weather_tool
+import importlib
+import logging
+import pkgutil
 
+import app.tools as tools_pkg
+from app.tools.core.registry import ToolRegistry
+
+logger = logging.getLogger(__name__)
 
 def build_registry() -> ToolRegistry:
     registry = ToolRegistry()
-    register_weather_tool(registry)
+    
+    for _, module_name, is_pkg in pkgutil.iter_modules(tools_pkg.__path__):
+        if is_pkg:
+            continue
+        module = importlib.import_module(f"app.tools.{module_name}")
+        for attr_name in dir(module):
+            if attr_name.startswith("register_") and callable(getattr(module, attr_name)):
+                getattr(module, attr_name)(registry)
+                logger.info("Auto registered tools from %s.%s", module_name,attr_name)
+
     return registry

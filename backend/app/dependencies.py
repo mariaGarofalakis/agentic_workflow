@@ -1,4 +1,4 @@
-from fastapi import Depends
+from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.runner import AgentRunner
@@ -7,18 +7,13 @@ from app.services.chat_service import ChatService
 from app.services.user_service import UserService
 from app.services.conversation_service import ConversationService
 
-_agent: AgentRunner | None = None
 
 
-def set_agent(agent: AgentRunner) -> None:
-    global _agent
-    _agent = agent
-
-
-def get_agent() -> AgentRunner:
-    if _agent is None:
-        raise RuntimeError("Agent has not been initialized")
-    return _agent
+def get_agent(request: Request) -> AgentRunner:
+    agent = getattr(request.app.state, "agent", None)
+    if agent is None:
+        raise RuntimeError("Agent has not been initialised")
+    return agent
 
 async def get_conversation_service(
     session: AsyncSession = Depends(get_db_session),
@@ -33,6 +28,6 @@ async def get_user_service(
 
 async def get_chat_service(
     session: AsyncSession = Depends(get_db_session),
+    agent: AgentRunner = Depends(get_agent),
 ) -> ChatService:
-    agent = get_agent()
     return ChatService(agent=agent, session=session)

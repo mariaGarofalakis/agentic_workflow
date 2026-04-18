@@ -1,10 +1,12 @@
 import json
+import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
 from app.providers.openai_responses import OpenAIResponsesClient, safe_json_dumps
 from app.tools.core.registry import ToolRegistry
 
+logger = logging.getLogger(__name__)
 
 class AgentRunner:
     def __init__(
@@ -105,6 +107,7 @@ class AgentRunner:
             try:
                 result = await self.registry.run(tool_name, args)
             except Exception as exc:
+                logger.exception("Tool '%s' raised an error", tool_name)
                 result = {
                     "ok": False,
                     "error": {

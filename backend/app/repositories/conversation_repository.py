@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, UTC
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -50,7 +50,7 @@ class ConversationRepository:
             raise RuntimeError("Conversation is already processing another message")
 
         conversation.is_processing = True
-        conversation.updated_at = datetime.utcnow()
+        conversation.updated_at = datetime.now(UTC)
         self.session.add(conversation)
         return conversation
 
@@ -68,6 +68,6 @@ class ConversationRepository:
             conversation.last_response_id = new_last_response_id
 
         conversation.is_processing = False
-        conversation.updated_at = datetime.utcnow()
+        conversation.updated_at = datetime.now(UTC)
         self.session.add(conversation)
         return conversation

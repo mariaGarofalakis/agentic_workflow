@@ -1,5 +1,5 @@
 import json
-
+import logging
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -7,6 +7,8 @@ from pydantic import BaseModel, Field
 from app.dependencies import get_chat_service
 from app.services.chat_service import ChatService
 
+
+logger = logging.getLogger(__name__)
 chat_router = APIRouter(prefix="/chat", tags=["chat"])
 
 
@@ -29,7 +31,8 @@ async def chat_stream(
                 yield f"data: {json.dumps(event)}\n\n"
 
         except Exception as exc:
-            yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
+            logger.exception("Error during chat stream for conversation '%s'", payload.conversation_id)
+            yield f"data: {json.dumps({'type': 'error', 'message':'An internal error occured'})}\n\n"
 
     return StreamingResponse(
         event_generator(),
