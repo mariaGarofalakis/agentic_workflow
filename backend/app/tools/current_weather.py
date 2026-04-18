@@ -2,7 +2,7 @@ import httpx
 from typing import Any
 
 from app.tools.core.registry import ToolRegistry
-from app.tools.utils import geo_response
+from app.tools.utils.geo_response import geo_response
 
 def register_current_weather_tool(registry: ToolRegistry) -> None:
     @registry.register(
@@ -31,7 +31,9 @@ def register_current_weather_tool(registry: ToolRegistry) -> None:
     async def get_current_weather(location: str, unit: str = "celsius") -> dict[str, Any]:
         temperature_unit = "fahrenheit" if unit == "fahrenheit" else "celsius"
 
-        lat,lon, place =  geo_response(location=location)
+        result =  await geo_response(location=location)
+        
+        lat,lon, place = result
 
         try:
             async with httpx.AsyncClient(timeout=20.0) as client:
