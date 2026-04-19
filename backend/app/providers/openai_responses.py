@@ -29,14 +29,21 @@ class OpenAIResponsesClient:
         tools: list[dict[str, Any]],
         previous_response_id: str | None = None,
     ) -> AsyncIterator[tuple[str, Any | None]]:
-        async with self._client.responses.stream(
-            model=self.model,
-            input=input_data,
-            tools=tools,
-            tool_choice="auto",
-            previous_response_id=previous_response_id,
-            max_output_tokens=self.max_output_tokens,
-        ) as stream:
+        
+        kwargs: dict[str, Any] = {
+            "model": self.model,
+            "input": input_data,
+            "previous_response_id": previous_response_id,
+            "max_output_tokens": self.max_output_tokens,
+        }
+
+        if tools:
+            kwargs["tools"] = tools
+            kwargs["tool_choice"] = "auto"
+
+   
+
+        async with self._client.responses.stream(**kwargs) as stream:
             async for event in stream:
                 delta = getattr(event, "delta", None)
                 if isinstance(delta, str) and delta:
