@@ -12,7 +12,6 @@ dependencies = [
   "sqlalchemy>=2.0.48",
   "aiosqlite>=0.22.1",
   "alembic>=1.18.4",
-  "duckduckgo-search>=8.1.1",
   "ddgs>=9.14.0",
 ]
 

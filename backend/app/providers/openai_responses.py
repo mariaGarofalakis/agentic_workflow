@@ -50,15 +50,21 @@ class OpenAIResponsesClient:
         input_data: str | list[dict[str, Any]],
         tools: list[dict[str, Any]],
         previous_response_id: str | None = None,
+        text_format: dict[str, Any] | None = None,
     ) -> Any:
-        async with self._client.responses.stream(
-            model=self.model,
-            input=input_data,
-            tools=tools,
-            tool_choice="auto",
-            previous_response_id=previous_response_id,
-            max_output_tokens=self.max_output_tokens,
-        ) as stream:
+        kwargs: dict[str, Any] = {
+            "model": self.model,
+            "input": input_data,
+            "tools": tools,
+            "tool_choice": "auto",
+            "previous_response_id": previous_response_id,
+            "max_output_tokens": self.max_output_tokens,
+        }
+
+        if text_format is not None:
+            kwargs["text"] = {"format": text_format}
+
+        async with self._client.responses.stream(**kwargs) as stream:
             async for _ in stream:
                 pass
             return await stream.get_final_response()
