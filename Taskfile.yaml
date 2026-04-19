@@ -2,29 +2,48 @@ version: "3"
 
 vars:
   DATABASE_URL: "sqlite+aiosqlite:///./dev.db"
+  VITE_API_BASE_URL: "http://localhost:8000/api"
 
 tasks:
   run:backend:
-    desc: Start the FastAPI backend locally with sqlite
+    desc: Start the FastAPI backend locally with sqlite using the legacy single-agent flow
     dir: backend
     env:
       DATABASE_URL: "{{.DATABASE_URL}}"
+      AGENT_WORKFLOW: "single"
     cmds:
       - uv sync
       - uv run alembic upgrade head
       - uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
-  run:frontend: # http://localhost:5173
+  run:backend:multi:
+    desc: Start the FastAPI backend locally with sqlite using the new multi-agent flow
+    dir: backend
+    env:
+      DATABASE_URL: "{{.DATABASE_URL}}"
+      AGENT_WORKFLOW: "multi"
+    cmds:
+      - uv sync
+      - uv run alembic upgrade head
+      - uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  run:frontend:
     desc: Start the Vite dev server
     dir: frontend
     env:
-      VITE_API_BASE_URL: "http://localhost:8000/api"
+      VITE_API_BASE_URL: "{{.VITE_API_BASE_URL}}"
     cmds:
       - npm install
       - npm run dev
-      
-  run:agentic_workflow:dev:
-    desc: Local execution of frontend and backend
+
+  run:react_streamer:dev:
+    desc: Run frontend + backend with the legacy single-agent flow
     deps:
       - run:backend
+      - run:frontend
+
+  run:multiagent:dev:
+    desc: Run frontend + backend with the new multi-agent flow
+    deps:
+      - run:backend:multi
       - run:frontend

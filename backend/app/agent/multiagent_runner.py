@@ -9,12 +9,23 @@ from app.tools.core.registry import ToolRegistry
 logger = logging.getLogger(__name__)
 
 
-class AgentRunner:
+class MultiAgentWorkflowRunner:
+    """
+    Phase 1 skeleton.
+
+
+    In later phases this runner will:
+    - create an orchestrator
+    - dispatch to worker agents
+    - use agent-specific ToolSets
+    - maintain structured planning state
+    """
+
     def __init__(
         self,
         llm: OpenAIResponsesClient,
         registry: ToolRegistry,
-        max_tool_iterations: int = 8,
+        max_tool_iterations: int = 4,
         stream_text: bool = False,
     ) -> None:
         self.llm = llm
@@ -28,10 +39,18 @@ class AgentRunner:
         user_input: str,
         previous_response_id: str | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
+        """
+        Phase 1 compatibility behavior:
+        - preserve current streaming contract
+        - preserve previous_response_id continuity
+        - preserve tool execution loop
+
+        In Phase 2+, this method will orchestrate a multi-agent workflow.
+        """
         response = None
 
         async for event in self._stream_turn_and_get_response(
-            input_data=user_input,
+            input_data=self._build_orchestrator_input(user_input),
             previous_response_id=previous_response_id,
         ):
             if event["type"] == "chunk":
@@ -40,7 +59,7 @@ class AgentRunner:
                 response = event["response"]
 
         if response is None:
-            raise RuntimeError("No response returned from initial streamed turn")
+            raise RuntimeError("No response returned from initial workflow turn")
 
         for _ in range(self.max_tool_iterations):
             tool_outputs = await self._collect_tool_outputs(response)
@@ -64,12 +83,25 @@ class AgentRunner:
                     response = event["response"]
 
             if response is None:
-                raise RuntimeError("No response returned from streamed tool turn")
+                raise RuntimeError("No response returned from workflow tool turn")
 
         yield {
             "type": "completed",
             "final_response_id": response.id if response is not None else None,
         }
+
+    def _build_orchestrator_input(self, user_input: str) -> str:
+        """
+        Phase 1:
+        Keep prompt shaping minimal.
+
+        Later this will package:
+        - user request
+        - planning state
+        - agent decisions
+        - worker outputs
+        """
+        return user_input
 
     async def _stream_turn_and_get_response(
         self,

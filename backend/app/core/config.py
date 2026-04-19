@@ -30,6 +30,10 @@ class Settings(BaseSettings):
 
     database_url: str = Field(default="sqlite+aiosqlite:///./dev.db", alias="DATABASE_URL")
 
+    # New
+    agent_workflow: str = Field(default="single", alias="AGENT_WORKFLOW")
+    stream_text: bool = Field(default=False, alias="STREAM_TEXT")
+
     @property
     def is_sqlite(self) -> bool:
         return self.database_url.startswith("sqlite+")

@@ -2,10 +2,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from app.db.session import AsyncSessionLocal
 from app.services.user_service import UserService
 
-from app.agent.runner import AgentRunner
+from app.agent.multiagent_runner import MultiAgentWorkflowRunner
+from app.agent.react_streamer import AgentRunner
 from app.api.chat_router import chat_router
 from app.api.conversation_router import conversation_router
 from app.api.user_router import user_router
@@ -19,8 +21,6 @@ configure_logging()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    
-
     registry = build_registry()
 
     llm = OpenAIResponsesClient(
@@ -31,15 +31,23 @@ async def lifespan(app: FastAPI):
         request_timeout_seconds=settings.request_timeout_seconds,
     )
 
-    agent = AgentRunner(
-        llm=llm,
-        registry=registry,
-        max_tool_iterations=settings.max_tool_iterations,
-    )
+    if settings.agent_workflow == "multi":
+        agent = MultiAgentWorkflowRunner(
+            llm=llm,
+            registry=registry,
+            max_tool_iterations=settings.max_tool_iterations,
+            stream_text=settings.stream_text,
+        )
+    else:
+        agent = AgentRunner(
+            llm=llm,
+            registry=registry,
+            max_tool_iterations=settings.max_tool_iterations,
+            stream_text=settings.stream_text,
+        )
 
     app.state.agent = agent
 
-    # create local user for test localy
     if not settings.auth_enabled:
         async with AsyncSessionLocal() as session:
             user_service = UserService(session)

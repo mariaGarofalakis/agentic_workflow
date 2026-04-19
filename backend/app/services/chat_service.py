@@ -2,7 +2,7 @@ from collections.abc import AsyncIterator
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agent.runner import AgentRunner
+from app.agent.interfaces import ChatAgentRunner
 from app.repositories.conversation_repository import ConversationRepository
 from app.repositories.message_repository import MessageRepository
 
@@ -10,7 +10,7 @@ from app.repositories.message_repository import MessageRepository
 class ChatService:
     def __init__(
         self,
-        agent: AgentRunner,
+        agent: ChatAgentRunner,
         session: AsyncSession,
     ) -> None:
         self.agent = agent
@@ -24,7 +24,6 @@ class ChatService:
         conversation_id: str,
         message: str,
     ) -> AsyncIterator[dict[str, str]]:
-        # Step 1: short transaction to claim the conversation
         async with self.session.begin():
             conversation = await self.conversation_repository.claim_for_processing(
                 conversation_id
@@ -42,7 +41,6 @@ class ChatService:
         final_response_id: str | None = None
 
         try:
-            # Step 2: run the model outside the DB transaction
             async for event in self.agent.run_stream(
                 user_input=message,
                 previous_response_id=previous_response_id,
@@ -56,7 +54,6 @@ class ChatService:
 
             assistant_content = "".join(chunks)
 
-            # Step 3: short transaction to finalize
             async with self.session.begin():
                 await self.message_repository.create(
                     conversation_id=conversation_id,
@@ -73,7 +70,6 @@ class ChatService:
             yield {"type": "done"}
 
         except Exception:
-            # Step 4: ensure processing flag is released on failure
             async with self.session.begin():
                 await self.conversation_repository.release_processing(
                     conversation_id,
