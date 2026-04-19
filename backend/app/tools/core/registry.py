@@ -58,6 +58,63 @@ class ToolRegistry:
         if names is None:
             return [tool.schema for tool in self._tools.values()]
         return [self.get_tool(name).schema for name in names]
+    
+
+    def describe(self, names: list[str] | None = None) -> str:
+    """
+    Return a compact, human-readable description of tools for prompting.
+
+    Output is optimized for LLM consumption:
+    - deterministic ordering
+    - no extra verbosity
+    - clear parameter structure
+    """
+
+    tools = (
+        [self.get_tool(name) for name in names]
+        if names is not None
+        else list(self._tools.values())
+    )
+
+    lines: list[str] = []
+
+    for tool in tools:
+        schema = tool.schema
+        name = schema.get("name", "unknown_tool")
+        description = schema.get("description", "").strip()
+
+        lines.append(f"Tool: {name}")
+        if description:
+            lines.append(f"Description: {description}")
+
+        params = schema.get("parameters", {})
+        properties: dict[str, Any] = params.get("properties", {}) or {}
+        required: set[str] = set(params.get("required", []) or [])
+
+        if properties:
+            lines.append("Arguments:")
+
+            for param_name in sorted(properties.keys()):
+                prop = properties[param_name] or {}
+                p_type = prop.get("type", "any")
+                p_desc = prop.get("description", "").strip()
+
+                req = "required" if param_name in required else "optional"
+
+                if p_desc:
+                    lines.append(
+                        f"  - {param_name} ({p_type}, {req}): {p_desc}"
+                    )
+                else:
+                    lines.append(
+                        f"  - {param_name} ({p_type}, {req})"
+                    )
+        else:
+            lines.append("Arguments: none")
+
+        lines.append("")  # spacing between tools
+
+    return "\n".join(lines).strip()
 
     async def run(self, name: str, tool_input: dict[str, Any]) -> Any:
         tool = self.get_tool(name)

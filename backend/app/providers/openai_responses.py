@@ -55,11 +55,13 @@ class OpenAIResponsesClient:
         kwargs: dict[str, Any] = {
             "model": self.model,
             "input": input_data,
-            "tools": tools,
-            "tool_choice": "auto",
             "previous_response_id": previous_response_id,
             "max_output_tokens": self.max_output_tokens,
         }
+
+        if tools:
+            kwargs["tools"] = tools
+            kwargs["tool_choice"] = "auto"
 
         if text_format is not None:
             kwargs["text"] = {"format": text_format}
