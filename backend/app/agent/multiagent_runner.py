@@ -5,6 +5,9 @@ from typing import Any
 from app.providers.openai_responses import OpenAIResponsesClient
 from app.tools.core.executor import ToolExecutor
 from app.tools.core.registry import ToolRegistry
+from app.planning.state import TripPlanState
+from app.agent.orchestrator import OrchestratorAgent, OrchestratorAction
+from app.agent.destination_agent import DestinationAgent, DestinationResult
 
 logger = logging.getLogger(__name__)
 
@@ -34,74 +37,50 @@ class MultiAgentWorkflowRunner:
         self.stream_text = stream_text
         self.executor = ToolExecutor(registry)
 
+    
     async def run_stream(
         self,
         user_input: str,
         previous_response_id: str | None = None,
-    ) -> AsyncIterator[dict[str, Any]]:
-        """
-        Phase 1 compatibility behavior:
-        - preserve current streaming contract
-        - preserve previous_response_id continuity
-        - preserve tool execution loop
+    ):
+        # initialize agents
+        orchestrator = OrchestratorAgent(self.llm)
+        destination_agent = DestinationAgent(self.llm)
 
-        In Phase 2+, this method will orchestrate a multi-agent workflow.
-        """
-        response = None
+        state = TripPlanState()
+        state.messages.append(user_input)
 
-        async for event in self._stream_turn_and_get_response(
-            input_data=self._build_orchestrator_input(user_input),
-            previous_response_id=previous_response_id,
-        ):
-            if event["type"] == "chunk":
-                yield event
-            elif event["type"] == "final_response":
-                response = event["response"]
+        final_text = ""
 
-        if response is None:
-            raise RuntimeError("No response returned from initial workflow turn")
+        for _ in range(5):
+            action: OrchestratorAction = await orchestrator.decide(
+                state.model_dump_json()
+            )
 
-        for _ in range(self.max_tool_iterations):
-            tool_outputs = await self._collect_tool_outputs(response)
-            if not tool_outputs:
-                yield {
-                    "type": "completed",
-                    "final_response_id": response.id,
-                }
-                return
+            if action.action == "extract_request":
+                state.request.destination = user_input
 
-            current_response_id = response.id
-            response = None
+            elif action.action == "research_destinations":
+                result = await destination_agent.run_structured(
+                    user_input,
+                    schema=DestinationResult,
+                )
+                state.destinations = result.options
 
-            async for event in self._stream_turn_and_get_response(
-                input_data=tool_outputs,
-                previous_response_id=current_response_id,
-            ):
-                if event["type"] == "chunk":
-                    yield event
-                elif event["type"] == "final_response":
-                    response = event["response"]
+            elif action.action == "finalize":
+                final_text = self._build_final_response(state)
+                break
 
-            if response is None:
-                raise RuntimeError("No response returned from workflow tool turn")
+        # stream result
+        for char in final_text:
+            yield {"type": "chunk", "content": char}
 
         yield {
             "type": "completed",
-            "final_response_id": response.id if response is not None else None,
+            "final_response_id": "multiagent-static-id",
         }
 
-    def _build_orchestrator_input(self, user_input: str) -> str:
-        """
-        Phase 1:
-        Keep prompt shaping minimal.
 
-        Later this will package:
-        - user request
-        - planning state
-        - agent decisions
-        - worker outputs
-        """
-        return user_input
 
     async def _stream_turn_and_get_response(
         self,
@@ -149,3 +128,13 @@ class MultiAgentWorkflowRunner:
             )
 
         return outputs
+    
+    def _build_final_response(self, state: TripPlanState) -> str:
+        if not state.destinations:
+            return "I could not find suitable destinations."
+
+        text = "Here are some travel ideas:\\n\\n"
+        for d in state.destinations:
+            text += f"- {d.name} ({d.country}): {d.reason}\\n"
+
+        return text
