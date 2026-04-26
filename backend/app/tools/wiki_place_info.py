@@ -1,11 +1,11 @@
 import httpx
-import logging
+from app.core.logging import get_logger
 from typing import Any
 from urllib.parse import quote
 
 from app.tools.core.registry import ToolRegistry
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def register_wikipedia_place_info_tool(registry: ToolRegistry) -> None:

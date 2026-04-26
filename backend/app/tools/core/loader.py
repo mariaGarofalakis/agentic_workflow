@@ -1,11 +1,11 @@
 import importlib
-import logging
+from app.core.logging import get_logger
 import pkgutil
 
 import app.tools as tools_pkg
 from app.tools.core.registry import ToolRegistry
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 def build_registry() -> ToolRegistry:
     registry = ToolRegistry()

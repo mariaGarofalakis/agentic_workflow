@@ -9,3 +9,10 @@ class ChatAgentRunner(Protocol):
         previous_response_id: str | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         ...
+
+    async def run(
+        self,
+        user_input: str,
+        previous_response_id: str | None = None,
+    ) -> dict[str, Any]:
+        ...

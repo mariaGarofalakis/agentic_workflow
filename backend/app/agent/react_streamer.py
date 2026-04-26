@@ -1,4 +1,4 @@
-import logging
+from app.core.logging import get_logger
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -6,7 +6,7 @@ from app.providers.openai_responses import OpenAIResponsesClient
 from app.tools.core.executor import ToolExecutor
 from app.tools.core.registry import ToolRegistry
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class AgentRunner:
@@ -30,11 +30,12 @@ class AgentRunner:
     ) -> AsyncIterator[dict[str, Any]]:
         response = None
 
+        # First model turn
         async for event in self._stream_turn_and_get_response(
             input_data=user_input,
             previous_response_id=previous_response_id,
         ):
-            if event["type"] == "chunk":
+            if event["type"] in {"chunk", "reasoning"}:
                 yield event
             elif event["type"] == "final_response":
                 response = event["response"]
@@ -42,8 +43,10 @@ class AgentRunner:
         if response is None:
             raise RuntimeError("No response returned from initial streamed turn")
 
+        # Tool loop
         for _ in range(self.max_tool_iterations):
             tool_outputs = await self._collect_tool_outputs(response)
+
             if not tool_outputs:
                 yield {
                     "type": "completed",
@@ -54,11 +57,12 @@ class AgentRunner:
             current_response_id = response.id
             response = None
 
+            # Follow-up model turn after tool execution
             async for event in self._stream_turn_and_get_response(
                 input_data=tool_outputs,
                 previous_response_id=current_response_id,
             ):
-                if event["type"] == "chunk":
+                if event["type"] in {"chunk", "reasoning"}:
                     yield event
                 elif event["type"] == "final_response":
                     response = event["response"]
@@ -78,14 +82,18 @@ class AgentRunner:
     ) -> AsyncIterator[dict[str, Any]]:
         final_response = None
 
-        async for chunk, response in self.llm.stream_response(
+        async for event_type, chunk, response in self.llm.stream_response(
             input_data=input_data,
             tools=self.registry.schemas,
             previous_response_id=previous_response_id,
         ):
-            if chunk:
+            if event_type == "chunk" and chunk:
                 yield {"type": "chunk", "content": chunk}
-            if response is not None:
+
+            elif event_type == "reasoning" and chunk:
+                yield {"type": "reasoning", "content": chunk}
+
+            elif event_type == "final_response" and response is not None:
                 final_response = response
 
         if final_response is None:
@@ -98,6 +106,7 @@ class AgentRunner:
 
         for item in getattr(response, "output", []):
             item_type = getattr(item, "type", None)
+
             if item_type not in {"function_call", "tool_call"}:
                 continue
 

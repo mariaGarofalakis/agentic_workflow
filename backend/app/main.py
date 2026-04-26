@@ -12,11 +12,11 @@ from app.api.chat_router import chat_router
 from app.api.conversation_router import conversation_router
 from app.api.user_router import user_router
 from app.core.config import settings
-from app.core.logging import configure_logging
+from app.core.logging import configure_global_logging
 from app.providers.openai_responses import OpenAIResponsesClient
 from app.tools.core.loader import build_registry
 
-configure_logging()
+configure_global_logging()
 
 
 @asynccontextmanager

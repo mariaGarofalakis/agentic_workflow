@@ -1,9 +1,9 @@
 import inspect
-import logging
+from app.core.logging import get_logger
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 ToolHandler = Callable[..., Awaitable[Any]]
 

@@ -2,6 +2,7 @@ import logging
 from abc import ABC
 from collections.abc import AsyncIterator
 from typing import Any, TypeVar
+
 from pydantic import BaseModel, Field, ValidationError
 
 from app.providers.openai_responses import OpenAIResponsesClient
@@ -34,6 +35,19 @@ class StructuredOutputError(RuntimeError):
 
 
 class BaseAgent(ABC):
+    """
+    Helper-only base class.
+
+    It provides:
+    - message building
+    - text extraction
+    - non-streaming text helper
+    - streaming text helper
+    - structured output helper with retry
+
+    It intentionally does NOT implement run() or run_stream().
+    """
+
     def __init__(self, llm: OpenAIResponsesClient) -> None:
         self.llm = llm
         self.logger = logging.getLogger(self.__class__.__qualname__)
@@ -44,38 +58,66 @@ class BaseAgent(ABC):
         user_content: str,
     ) -> list[dict[str, Any]]:
         return [
+            # Keep "developer" because your old flow used it.
+            # If your local model behaves strangely, switch this to "system".
             {"role": "developer", "content": system_prompt},
             {"role": "user", "content": user_content},
         ]
 
     @staticmethod
     def _extract_text(response: Any) -> str:
+        """
+        Extract text from a final Responses API object.
+
+        Supports both:
+        - response.output_text
+        - response.output[].content[].text
+        """
+        output_text = getattr(response, "output_text", None)
+        if isinstance(output_text, str) and output_text:
+            return output_text
+
         parts: list[str] = []
+
         for item in getattr(response, "output", []):
             if getattr(item, "type", None) != "message":
                 continue
+
             for content in getattr(item, "content", []):
                 if getattr(content, "type", None) == "output_text":
                     parts.append(getattr(content, "text", ""))
+
         return "".join(parts)
 
     async def _get_text_response(
         self,
         messages: list[dict[str, Any]],
+        previous_response_id: str | None = None,
     ) -> str:
         response = await self.llm.get_final_response(
             input_data=messages,
             tools=[],
+            previous_response_id=previous_response_id,
         )
+
         return self._extract_text(response)
 
     async def _stream_text(
         self,
         messages: list[dict[str, Any]],
+        previous_response_id: str | None = None,
     ) -> AsyncIterator[str]:
+        """
+        Streams text chunks exactly like your old helper did.
+
+        This yields raw string chunks, not event dicts.
+        The caller decides whether to wrap them as:
+            {"type": "chunk", "content": chunk}
+        """
         async for chunk, _ in self.llm.stream_response(
             input_data=messages,
             tools=[],
+            previous_response_id=previous_response_id,
         ):
             if chunk:
                 yield chunk
@@ -84,12 +126,16 @@ class BaseAgent(ABC):
         self,
         messages: list[dict[str, Any]],
         schema: type[T],
+        previous_response_id: str | None = None,
         max_retries: int = 3,
     ) -> T:
         """
-        Request a schema-constrained response and retry explicitly if parsing/validation fails.
+        Request a schema-constrained response and retry if parsing/validation fails.
 
         Total attempts = 1 + max_retries.
+
+        This keeps structured output separate from streaming.
+        Use this for orchestrator-style agents.
         """
         text_format = {
             "type": "json_schema",
@@ -104,6 +150,7 @@ class BaseAgent(ABC):
             response = await self.llm.get_final_response(
                 input_data=working_messages,
                 tools=[],
+                previous_response_id=previous_response_id if attempt == 0 else None,
                 text_format=text_format,
             )
 
@@ -128,7 +175,6 @@ class BaseAgent(ABC):
                         f"Validation error:\n{exc}"
                     ) from exc
 
-                # Feed the model its invalid output plus the validation error.
                 working_messages = [
                     *working_messages,
                     {

@@ -1,11 +1,11 @@
 import ast
 import operator
-import logging
+from app.core.logging import get_logger
 from typing import Any
 
 from app.tools.core.registry import ToolRegistry
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # Supported operators

@@ -107,3 +107,18 @@ body {
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+.reasoning-box {
+  margin: 0 16px 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #fafafa;
+  border: 1px dashed #d1d5db;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.4;
+  font-style: italic;
+  white-space: pre-wrap;
+  max-height: 80px;
+  overflow-y: auto;
+}

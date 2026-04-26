@@ -1,15 +1,14 @@
-import logging
+from app.core.logging import get_logger
 from collections.abc import AsyncIterator
 from typing import Any
 
 from app.providers.openai_responses import OpenAIResponsesClient
 from app.tools.core.executor import ToolExecutor
 from app.tools.core.registry import ToolRegistry
-from app.planning.state import TripPlanState
-from app.agent.orchestrator import OrchestratorAgent, OrchestratorAction
-from app.agent.destination_agent import DestinationAgent, DestinationResult
+from app.agent.orchestrator import OrchestratorAgent, OrchestratorDecision
 
-logger = logging.getLogger(__name__)
+
+logger = get_logger(__name__)
 
 
 class MultiAgentWorkflowRunner:
@@ -36,51 +35,43 @@ class MultiAgentWorkflowRunner:
         self.max_tool_iterations = max_tool_iterations
         self.stream_text = stream_text
         self.executor = ToolExecutor(registry)
+        self.orchestrator = OrchestratorAgent(llm)
 
+    
     
     async def run_stream(
         self,
         user_input: str,
         previous_response_id: str | None = None,
-    ):
-        # initialize agents
-        orchestrator = OrchestratorAgent(self.llm)
-        destination_agent = DestinationAgent(self.llm)
+    ) -> AsyncIterator[dict[str, Any]]:
+        result = await self.orchestrator.run(
+        user_input=user_input,
+        previous_response_id=None,
+    )
 
-        state = TripPlanState()
-        state.messages.append(user_input)
+        decision = result["decision"]
 
-        final_text = ""
+        print("ORCHESTRATOR RAW:", result.output_text)
+        print("ORCHESTRATOR PARSED:", result.output_parsed)
 
-        for _ in range(5):
-            action: OrchestratorAction = await orchestrator.decide(
-                state.model_dump_json()
-            )
-
-            if action.action == "extract_request":
-                state.request.destination = user_input
-
-            elif action.action == "research_destinations":
-                result = await destination_agent.run_structured(
-                    user_input,
-                    schema=DestinationResult,
-                )
-                state.destinations = result.options
-
-            elif action.action == "finalize":
-                final_text = self._build_final_response(state)
-                break
-
-        # stream result
-        for char in final_text:
-            yield {"type": "chunk", "content": char}
+        yield {
+            "type": "chunk",
+            "content": (
+                f"Target: {decision.target}\n"
+                f"Destination: {decision.destination}\n"
+                f"Duration: {decision.duration_days}\n"
+                f"Start date: {decision.start_date}\n"
+                f"End date: {decision.end_date}\n"
+                f"Date clear: {decision.is_date_range_clear}\n"
+                f"Missing: {', '.join(decision.missing_fields) or 'None'}\n"
+                f"Blocking: {', '.join(decision.blocking_missing_fields) or 'None'}\n"
+            ),
+        }
 
         yield {
             "type": "completed",
-            "final_response_id": "multiagent-static-id",
+            "final_response_id": orchestrator_response.id,
         }
-
-
 
     async def _stream_turn_and_get_response(
         self,
@@ -103,38 +94,4 @@ class MultiAgentWorkflowRunner:
             raise RuntimeError("Stream completed without final response")
 
         yield {"type": "final_response", "response": final_response}
-
-    async def _collect_tool_outputs(self, response: Any) -> list[dict[str, Any]]:
-        outputs: list[dict[str, Any]] = []
-
-        for item in getattr(response, "output", []):
-            item_type = getattr(item, "type", None)
-            if item_type not in {"function_call", "tool_call"}:
-                continue
-
-            tool_name = getattr(item, "name", "")
-            call_id = getattr(item, "call_id", None)
-            raw_args = getattr(item, "arguments", {})
-
-            parsed_args = self.executor.parse_arguments(raw_args)
-            executed = await self.executor.execute(tool_name, parsed_args)
-
-            outputs.append(
-                {
-                    "type": "function_call_output",
-                    "call_id": call_id,
-                    "output": self.executor.serialize_result(executed.result),
-                }
-            )
-
-        return outputs
-    
-    def _build_final_response(self, state: TripPlanState) -> str:
-        if not state.destinations:
-            return "I could not find suitable destinations."
-
-        text = "Here are some travel ideas:\\n\\n"
-        for d in state.destinations:
-            text += f"- {d.name} ({d.country}): {d.reason}\\n"
-
-        return text
+     

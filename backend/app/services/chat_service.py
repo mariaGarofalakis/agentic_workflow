@@ -2,7 +2,7 @@ from collections.abc import AsyncIterator
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agent.interfaces import ChatAgentRunner
+from app.agent.core.interfaces import ChatAgentRunner
 from app.repositories.conversation_repository import ConversationRepository
 from app.repositories.message_repository import MessageRepository
 
@@ -49,6 +49,10 @@ class ChatService:
                     chunk = event["content"]
                     chunks.append(chunk)
                     yield {"type": "chunk", "content": chunk}
+
+                elif event["type"] == "reasoning":
+                    yield {"type": "reasoning", "content": event["content"]}
+
                 elif event["type"] == "completed":
                     final_response_id = event["final_response_id"]
 

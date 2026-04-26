@@ -1,7 +1,7 @@
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agent.interfaces import ChatAgentRunner
+from app.agent.core.interfaces import ChatAgentRunner
 from app.db.session import get_db_session
 from app.services.chat_service import ChatService
 from app.services.user_service import UserService

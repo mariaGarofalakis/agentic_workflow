@@ -4,7 +4,9 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from openai import AsyncOpenAI
+from app.core.logging import get_logger
 
+logger = get_logger()
 
 class OpenAIResponsesClient:
     def __init__(
@@ -29,7 +31,7 @@ class OpenAIResponsesClient:
         tools: list[dict[str, Any]],
         previous_response_id: str | None = None,
     ) -> AsyncIterator[tuple[str, Any | None]]:
-        
+
         kwargs: dict[str, Any] = {
             "model": self.model,
             "input": input_data,
@@ -41,16 +43,26 @@ class OpenAIResponsesClient:
             kwargs["tools"] = tools
             kwargs["tool_choice"] = "auto"
 
-   
-
         async with self._client.responses.stream(**kwargs) as stream:
             async for event in stream:
-                delta = getattr(event, "delta", None)
-                if isinstance(delta, str) and delta:
-                    yield delta, None
+                event_type = getattr(event, "type", None)
+
+                if event_type == "response.reasoning_text.delta":
+                    delta = getattr(event, "delta", "")
+                    if delta:
+                        yield "reasoning", delta, None
+
+                elif event_type == "response.output_text.delta":
+                    delta = getattr(event, "delta", "")
+                    if delta:
+                        yield "chunk", delta, None
+
+                elif event_type == "response.error":
+                    error = getattr(event, "error", None)
+                    raise RuntimeError(f"OpenAI stream error: {error}")
 
             final_response = await stream.get_final_response()
-            yield "", final_response
+            yield "final_response", None, final_response
 
     async def get_final_response(
         self,

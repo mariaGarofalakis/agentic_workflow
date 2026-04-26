@@ -1,12 +1,12 @@
 import json
-import logging
+from app.core.logging import get_logger
 from dataclasses import dataclass
 from typing import Any
 
 from app.providers.openai_responses import safe_json_dumps
 from app.tools.core.registry import ToolRegistry, ToolSet
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass(slots=True)

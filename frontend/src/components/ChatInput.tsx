@@ -12,6 +12,7 @@ export function ChatInput({ onSend, disabled = false }: Props) {
     event.preventDefault();
 
     const trimmed = value.trim();
+
     if (!trimmed || disabled) {
       return;
     }
@@ -24,10 +25,11 @@ export function ChatInput({ onSend, disabled = false }: Props) {
     <form className="chat-input" onSubmit={handleSubmit}>
       <input
         value={value}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={(event) => setValue(event.target.value)}
         placeholder="Type your message..."
         disabled={disabled}
       />
+
       <button type="submit" disabled={disabled}>
         Send
       </button>
