@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator
 from typing import Any, Protocol
+from app.agent.core.events import AgentEvent
 
 
 class ChatAgentRunner(Protocol):
@@ -7,7 +8,7 @@ class ChatAgentRunner(Protocol):
         self,
         user_input: str,
         previous_response_id: str | None = None,
-    ) -> AsyncIterator[dict[str, Any]]:
+    ) -> AsyncIterator[AgentEvent]:
         ...
 
     async def run(

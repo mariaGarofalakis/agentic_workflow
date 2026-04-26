@@ -1,11 +1,10 @@
 import json
-from datetime import UTC, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.agent.core.base import BaseAgent
-from app.providers.openai_responses import OpenAIResponsesClient
+from app.tools.core.registry import ToolRegistry, ToolSet
 
 
 class OrchestratorDecision(BaseModel):
@@ -28,7 +27,12 @@ class OrchestratorDecision(BaseModel):
     missing_fields: list[str] = Field(default_factory=list)
     blocking_missing_fields: list[str] = Field(default_factory=list)
 
-    @field_validator("interests", "missing_fields", "blocking_missing_fields", mode="before")
+    @field_validator(
+        "interests",
+        "missing_fields",
+        "blocking_missing_fields",
+        mode="before",
+    )
     @classmethod
     def none_to_empty_list(cls, value: Any) -> Any:
         if value is None:
@@ -37,6 +41,25 @@ class OrchestratorDecision(BaseModel):
 
 
 class OrchestratorAgent(BaseAgent):
+    STANDARD_TOOL_NAMES = ["normalize_travel_dates"]
+    def __init__(
+        self,
+        llm,
+        registry: ToolRegistry | ToolSet,
+    ) -> None:
+        super().__init__(llm)
+
+        self.tools: ToolSet = registry.subset(self.STANDARD_TOOL_NAMES)
+
+        if self.tools.names != self.STANDARD_TOOL_NAMES:
+            raise ValueError(
+                f"OrchestratorAgent expected tools {self.STANDARD_TOOL_NAMES}, "
+                f"got {self.tools.names}"
+            )
+        
+        self.logger.info("ORCHESTRATOR TOOL NAMES: %s", self.tools.names)
+        self.logger.info("ORCHESTRATOR TOOL SCHEMAS: %s", self.tools.schemas)
+
     async def run(
         self,
         user_input: str,
@@ -57,15 +80,30 @@ class OrchestratorAgent(BaseAgent):
         user_input: str,
         previous_response_id: str | None = None,
     ) -> tuple[OrchestratorDecision, str | None]:
-        current_date = datetime.now(UTC).date().isoformat()
-
-        schema_json = json.dumps(
-            OrchestratorDecision.model_json_schema(),
-            indent=2,
-            ensure_ascii=False,
+        messages = self.build_messages(
+            system_prompt=self._build_system_prompt(),
+            user_content=(
+                "Extract planning state and route this message.\n"
+                "You may call tools if needed, especially for date normalization.\n"
+                "Return only the final JSON object.\n\n"
+                f"User message: {user_input}"
+            ),
         )
 
-        system_prompt = f"""
+        return await self.get_structured_response_with_tools(
+            messages=messages,
+            schema=OrchestratorDecision,
+            tools=self.tools,
+            previous_response_id=None,
+            max_tool_iterations=1,
+            max_retries=2,
+        )
+
+    def _build_system_prompt(self) -> str:
+        current_date = self.current_date_utc()
+        schema_json = self.schema_to_prompt(OrchestratorDecision)
+
+        return f"""
 You are the orchestrator for a vacation-planning multi-agent system.
 
 Your job:
@@ -77,6 +115,12 @@ Your job:
 
 Current date: {current_date}
 
+Available tool behavior:
+- If the user mentions natural-language dates, relative dates, weekends, or vague date phrases, call normalize_travel_dates.
+- Use the tool result to fill start_date, end_date, duration_days, and is_date_range_clear.
+- If the tool cannot normalize the date, keep start_date=null, end_date=null, is_date_range_clear=false.
+- Do not invent dates if neither the user nor the tool gives clear dates.
+
 Routing rules:
 - If the user asks about vacations, trips, itineraries, hotels, flights, destinations, travel budgets, or travel weather, use target="VacationPlanner".
 - If the user request is too unclear to act on, use target="Clarifier".
@@ -85,7 +129,6 @@ Routing rules:
 Date rules:
 - Always output start_date and end_date as top-level fields.
 - Use ISO date format: YYYY-MM-DD.
-- Resolve relative dates using the current date.
 - If the user explicitly gives duration_days, do not change it.
 - If the user asks for a 3 day plan, duration_days must be 3.
 - If the user gives a duration and a clear start date, infer end_date.
@@ -112,19 +155,3 @@ Output rules:
 JSON Schema:
 {schema_json}
 """.strip()
-
-        messages = self.build_messages(
-            system_prompt=system_prompt,
-            user_content=(
-                "Extract planning state and route this message. "
-                "Return only the JSON object.\n\n"
-                f"User message: {user_input}"
-            ),
-        )
-
-        return await self._get_structured_response(
-            messages=messages,
-            schema=OrchestratorDecision,
-            previous_response_id=None,
-            max_retries=2,
-        )

@@ -35,7 +35,7 @@ class MultiAgentWorkflowRunner:
         self.max_tool_iterations = max_tool_iterations
         self.stream_text = stream_text
         self.executor = ToolExecutor(registry)
-        self.orchestrator = OrchestratorAgent(llm)
+        self.orchestrator = OrchestratorAgent(llm, registry=registry)
 
     
     
@@ -45,14 +45,15 @@ class MultiAgentWorkflowRunner:
         previous_response_id: str | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         result = await self.orchestrator.run(
-        user_input=user_input,
-        previous_response_id=None,
-    )
+            user_input=user_input,
+            previous_response_id=None,
+        )
 
         decision = result["decision"]
+        orchestrator_response_id = result["final_response_id"]
 
-        print("ORCHESTRATOR RAW:", result.output_text)
-        print("ORCHESTRATOR PARSED:", result.output_parsed)
+        print("ORCHESTRATOR PARSED:", decision)
+        print("ORCHESTRATOR RESPONSE ID:", orchestrator_response_id)
 
         yield {
             "type": "chunk",
@@ -70,7 +71,7 @@ class MultiAgentWorkflowRunner:
 
         yield {
             "type": "completed",
-            "final_response_id": orchestrator_response.id,
+            "final_response_id": None,
         }
 
     async def _stream_turn_and_get_response(
