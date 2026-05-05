@@ -21,55 +21,80 @@ body {
 
 .chat-card {
   width: 100%;
-  max-width: 720px;
+  max-width: 760px;
   background: white;
   border: 1px solid #e5e7eb;
-  border-radius: 16px;
+  border-radius: 20px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  min-height: 70vh;
+  min-height: 76vh;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
 }
 
 .chat-header {
-  padding: 16px 20px;
-  font-weight: 600;
+  padding: 18px 22px;
+  font-size: 18px;
+  font-weight: 700;
   border-bottom: 1px solid #e5e7eb;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-button {
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #111827;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.header-button:hover {
+  background: #f3f4f6;
 }
 
 .messages {
   flex: 1;
-  padding: 16px;
+  padding: 18px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .message {
   max-width: 85%;
-  padding: 12px 14px;
-  border-radius: 14px;
-  line-height: 1.5;
+  padding: 13px 15px;
+  border-radius: 16px;
+  line-height: 1.6;
   white-space: pre-wrap;
+  font-size: 14px;
 }
 
 .message.user {
   align-self: flex-end;
   background: #111827;
   color: white;
+  border-bottom-right-radius: 5px;
 }
 
 .message.assistant {
   align-self: flex-start;
   background: #f3f4f6;
   color: #111827;
+  border-bottom-left-radius: 5px;
 }
 
 .message-role {
   font-size: 12px;
+  font-weight: 600;
   opacity: 0.7;
-  margin-bottom: 4px;
+  margin-bottom: 5px;
 }
 
 .loading {
@@ -83,23 +108,35 @@ body {
   gap: 12px;
   padding: 16px;
   border-top: 1px solid #e5e7eb;
+  background: #ffffff;
 }
 
 .chat-input input {
   flex: 1;
   border: 1px solid #d1d5db;
-  border-radius: 10px;
-  padding: 12px;
+  border-radius: 12px;
+  padding: 13px 14px;
   font-size: 14px;
+  outline: none;
+}
+
+.chat-input input:focus {
+  border-color: #111827;
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.08);
 }
 
 .chat-input button {
   border: 0;
   background: #111827;
   color: white;
-  border-radius: 10px;
-  padding: 12px 16px;
+  border-radius: 12px;
+  padding: 13px 18px;
+  font-weight: 600;
   cursor: pointer;
+}
+
+.chat-input button:hover {
+  background: #1f2937;
 }
 
 .chat-input button:disabled,
@@ -109,16 +146,137 @@ body {
 }
 
 .reasoning-box {
-  margin: 0 16px 12px;
-  padding: 8px 10px;
-  border-radius: 10px;
+  margin: 0 18px 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
   background: #fafafa;
   border: 1px dashed #d1d5db;
   color: #6b7280;
   font-size: 12px;
-  line-height: 1.4;
+  line-height: 1.5;
   font-style: italic;
   white-space: pre-wrap;
-  max-height: 80px;
+  max-height: 90px;
   overflow-y: auto;
+}
+
+/* Small inline trip-missing card */
+.preferences-card {
+  margin: 0 18px 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #7c2d12;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Full-screen preferences modal */
+.preferences-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(17, 24, 39, 0.52);
+  backdrop-filter: blur(4px);
+}
+
+.preferences-modal {
+  width: 100%;
+  max-width: 460px;
+  background: white;
+  border-radius: 22px;
+  padding: 24px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 28px 70px rgba(15, 23, 42, 0.25);
+}
+
+.preferences-modal strong {
+  display: block;
+  font-size: 22px;
+  line-height: 1.2;
+  margin-bottom: 8px;
+}
+
+.preferences-modal p {
+  margin: 0 0 16px;
+  color: #4b5563;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.preferences-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.preferences-form input,
+.preferences-form select {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  padding: 12px 13px;
+  font-size: 14px;
+  outline: none;
+  background: white;
+}
+
+.preferences-form input:focus,
+.preferences-form select:focus {
+  border-color: #047857;
+  box-shadow: 0 0 0 3px rgba(4, 120, 87, 0.12);
+}
+
+.preferences-modal button {
+  width: 100%;
+  margin-top: 16px;
+  border: 0;
+  background: #047857;
+  color: white;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.preferences-modal button:hover {
+  background: #065f46;
+}
+
+.preferences-modal button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .app-shell {
+    padding: 0;
+  }
+
+  .chat-card {
+    min-height: 100vh;
+    border-radius: 0;
+    border: 0;
+  }
+
+  .message {
+    max-width: 92%;
+  }
+
+  .chat-input {
+    flex-direction: column;
+  }
+
+  .chat-input button {
+    width: 100%;
+  }
+
+  .preferences-modal {
+    max-width: 100%;
+  }
 }

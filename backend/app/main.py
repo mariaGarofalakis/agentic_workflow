@@ -10,6 +10,7 @@ from app.agent.multiagent_runner import MultiAgentWorkflowRunner
 from app.agent.react_streamer import AgentRunner
 from app.api.chat_router import chat_router
 from app.api.conversation_router import conversation_router
+from app.api.travel_preferences_router import travel_preferences_router
 from app.api.user_router import user_router
 from app.core.config import settings
 from app.core.logging import configure_global_logging
@@ -66,13 +67,14 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.frontend_origin],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["*"],
     allow_headers=["Content-Type", "Authorization"],
 )
 
 app.include_router(chat_router, prefix="/api")
 app.include_router(conversation_router, prefix="/api")
 app.include_router(user_router, prefix="/api")
+app.include_router(travel_preferences_router, prefix="/api")
 
 
 @app.get("/health")

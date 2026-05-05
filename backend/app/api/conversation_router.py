@@ -34,7 +34,7 @@ async def create_conversation(
     service: ConversationService = Depends(get_conversation_service),
 ) -> CreateConversationResponse:
     try:
-        conversation_id = await service.create_conversation(
+        created = await service.create_conversation(
             user_id=payload.user_id,
             title=payload.title,
         )
@@ -45,7 +45,7 @@ async def create_conversation(
         ) from exc
 
     return CreateConversationResponse(
-        conversation_id=conversation_id,
-        user_id=payload.user_id,
-        title=payload.title,
+        conversation_id=created.conversation_id,
+        user_id=created.user_id,
+        title=created.title,
     )

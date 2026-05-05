@@ -10,7 +10,7 @@ from app.tools.core.registry import ToolRegistry, ToolSet
 class OrchestratorDecision(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    target: Literal["VacationPlanner", "Clarifier", "GeneralAssistant"] = Field(
+    target: Literal["VacationPlanner","GeneralAssistant"] = Field(
         description="The worker agent that should handle the request."
     )
 
@@ -123,8 +123,7 @@ Available tool behavior:
 
 Routing rules:
 - If the user asks about vacations, trips, itineraries, hotels, flights, destinations, travel budgets, or travel weather, use target="VacationPlanner".
-- If the user request is too unclear to act on, use target="Clarifier".
-- Otherwise, use target="GeneralAssistant".
+- If the user request is too unclear to act on, use target="GeneralAssistant".
 
 Date rules:
 - Always output start_date and end_date as top-level fields.

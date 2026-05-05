@@ -1,5 +1,5 @@
 from collections.abc import AsyncIterator
-
+from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.core.interfaces import ChatAgentRunner
@@ -23,7 +23,7 @@ class ChatService:
         *,
         conversation_id: str,
         message: str,
-    ) -> AsyncIterator[dict[str, str]]:
+    ) -> AsyncIterator[dict[str, Any]]:
         async with self.session.begin():
             conversation = await self.conversation_repository.claim_for_processing(
                 conversation_id
@@ -55,6 +55,9 @@ class ChatService:
 
                 elif event["type"] == "completed":
                     final_response_id = event["final_response_id"]
+
+                elif event["type"] == "ui_hint":
+                    yield event
 
             assistant_content = "".join(chunks)
 

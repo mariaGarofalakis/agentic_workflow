@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
-import { streamMessage } from "../api/chat";
+import { streamMessage, UiHint } from "../api/chat";
 import { createConversation } from "../api/conversations";
+import { getTravelPreferences } from "../api/travelPreferences";
 import { Message } from "../types/chat";
 
 function createMessage(role: Message["role"], content: string): Message {
@@ -18,19 +19,48 @@ export function useChat() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [reasoningText, setReasoningText] = useState("");
+  const [uiHint, setUiHint] = useState<UiHint | null>(null);
+
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
+  const [preferencesMissing, setPreferencesMissing] = useState(false);
 
   const hasStartedAnswerRef = useRef(false);
   const clearReasoningTimerRef = useRef<number | null>(null);
 
+  function openPreferences() {
+    setPreferencesMissing(true);
+  }
+
   async function ensureConversationId(): Promise<string> {
-    if (conversationId) {
-      return conversationId;
+    if (conversationId) return conversationId;
+
+    const result = await createConversation("New chat");
+
+    setConversationId(result.conversation_id);
+    setUserId(result.user_id);
+
+    if (result.user_id) {
+      try {
+        const preferences = await getTravelPreferences(result.user_id);
+        setPreferencesMissing(preferences === null);
+      } catch {
+        setPreferencesMissing(true);
+      } finally {
+        setPreferencesLoaded(true);
+      }
+    } else {
+      setPreferencesMissing(true);
+      setPreferencesLoaded(true);
     }
 
-    const newConversationId = await createConversation("New chat");
-    setConversationId(newConversationId);
-    return newConversationId;
+    return result.conversation_id;
+  }
+
+  function handlePreferencesSaved() {
+    setPreferencesMissing(false);
+    setPreferencesLoaded(true);
   }
 
   function clearReasoningSoon(delayMs: number) {
@@ -47,7 +77,14 @@ export function useChat() {
   async function sendMessage(text: string): Promise<void> {
     if (!text.trim() || isLoading) return;
 
+    const activeConversationId = await ensureConversationId();
+
+    if (!preferencesLoaded || preferencesMissing) {
+      return;
+    }
+
     hasStartedAnswerRef.current = false;
+    setUiHint(null);
 
     if (clearReasoningTimerRef.current !== null) {
       window.clearTimeout(clearReasoningTimerRef.current);
@@ -72,33 +109,22 @@ export function useChat() {
     setIsLoading(true);
 
     try {
-      const activeConversationId = await ensureConversationId();
-
       await streamMessage(
         activeConversationId,
         text,
-
-        // Normal assistant answer chunk.
         (chunk) => {
           const isRealAnswerChunk = chunk.trim().length > 0;
 
           if (isRealAnswerChunk && !hasStartedAnswerRef.current) {
             hasStartedAnswerRef.current = true;
-
-            // Give the user a moment to see the reasoning before it disappears.
             clearReasoningSoon(700);
           }
 
           setMessages((prev) =>
             prev.map((message) => {
-              if (message.id !== assistantId) {
-                return message;
-              }
+              if (message.id !== assistantId) return message;
 
-              // Avoid showing blank assistant message from "\n" chunks.
-              if (!message.content && !isRealAnswerChunk) {
-                return message;
-              }
+              if (!message.content && !isRealAnswerChunk) return message;
 
               return {
                 ...message,
@@ -107,38 +133,26 @@ export function useChat() {
             })
           );
         },
-
-        // Reasoning/debug chunk.
         (reasoningChunk) => {
           if (!reasoningChunk.trim()) return;
-
-          // Once the real answer has started, ignore late reasoning.
           if (hasStartedAnswerRef.current) return;
 
-          setReasoningText((prev) => {
-            if (prev === "Thinking…") {
-              return reasoningChunk;
-            }
-
-            return prev + reasoningChunk;
-          });
+          setReasoningText((prev) =>
+            prev === "Thinking…" ? reasoningChunk : prev + reasoningChunk
+          );
         },
-
-        // Done.
+        (hint) => {
+          setUiHint(hint);
+        },
         () => {
           setIsLoading(false);
           clearReasoningSoon(300);
         },
-
-        // Error.
         (errorMessage) => {
           setMessages((prev) =>
             prev.map((message) =>
               message.id === assistantId
-                ? {
-                    ...message,
-                    content: `Error: ${errorMessage}`,
-                  }
+                ? { ...message, content: `Error: ${errorMessage}` }
                 : message
             )
           );
@@ -151,10 +165,7 @@ export function useChat() {
       setMessages((prev) =>
         prev.map((message) =>
           message.id === assistantId
-            ? {
-                ...message,
-                content: "Error: failed to stream response.",
-              }
+            ? { ...message, content: "Error: failed to stream response." }
             : message
         )
       );
@@ -169,5 +180,10 @@ export function useChat() {
     isLoading,
     reasoningText,
     sendMessage,
+    uiHint,
+    userId,
+    preferencesMissing,
+    handlePreferencesSaved,
+    openPreferences,
   };
 }

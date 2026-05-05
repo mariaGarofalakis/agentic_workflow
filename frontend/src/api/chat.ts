@@ -7,11 +7,18 @@ function waitForBrowserPaint(): Promise<void> {
   });
 }
 
+export type UiHint = {
+  component: string;
+  missing_fields: string[];
+  saveable_fields: string[];
+};
+
 export async function streamMessage(
   conversationId: string,
   message: string,
   onChunk: (chunk: string) => void,
   onReasoning: (chunk: string) => void,
+  onUiHint: (hint: UiHint) => void,
   onDone: () => void,
   onError: (message: string) => void
 ): Promise<void> {
@@ -38,9 +45,7 @@ export async function streamMessage(
   while (true) {
     const { value, done } = await reader.read();
 
-    if (done) {
-      break;
-    }
+    if (done) break;
 
     buffer += decoder.decode(value, { stream: true });
 
@@ -58,16 +63,13 @@ export async function streamMessage(
         type: string;
         content?: string;
         message?: string;
+        component?: string;
+        missing_fields?: string[];
+        saveable_fields?: string[];
       };
 
       try {
         payload = JSON.parse(line.slice(6));
-        console.log(
-          "SSE payload:",
-          payload.type,
-          performance.now(),
-          payload.content
-        );
       } catch {
         continue;
       }
@@ -76,10 +78,13 @@ export async function streamMessage(
         onChunk(payload.content ?? "");
       } else if (payload.type === "reasoning") {
         onReasoning(payload.content ?? "");
-
-        // Important:
-        // Let React/browser paint the reasoning text before more events clear it.
         await waitForBrowserPaint();
+      } else if (payload.type === "ui_hint") {
+        onUiHint({
+          component: payload.component ?? "",
+          missing_fields: payload.missing_fields ?? [],
+          saveable_fields: payload.saveable_fields ?? [],
+        });
       } else if (payload.type === "done") {
         finished = true;
         onDone();

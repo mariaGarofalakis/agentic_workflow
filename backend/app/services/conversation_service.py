@@ -1,8 +1,14 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from pydantic import BaseModel
 from app.core.config import settings
 from app.repositories.conversation_repository import ConversationRepository
 from app.repositories.user_repository import UserRepository
+
+
+class CreatedConversation(BaseModel):
+    conversation_id: str
+    user_id: str
+    title: str | None
 
 
 class ConversationService:
@@ -16,7 +22,7 @@ class ConversationService:
         *,
         title: str | None = None,
         user_id: str | None = None,
-    ) -> str:
+    ) -> CreatedConversation:
         async with self.session.begin():
             resolved_user_id = user_id
 
@@ -35,4 +41,8 @@ class ConversationService:
                 title=title,
             )
 
-        return conversation.id
+        return CreatedConversation(
+            conversation_id=conversation.id,
+            user_id=resolved_user_id,
+            title=conversation.title,
+        )

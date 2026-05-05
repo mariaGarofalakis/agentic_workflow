@@ -53,7 +53,8 @@ def register_date_normalizer_tool(registry: ToolRegistry) -> None:
     )
     async def normalize_travel_dates(
         date_text: str,
-        duration_days: int | None = None,
+        user_input: str | None = None,
+        duration_days: Any = None,
         timezone: str = "Europe/Copenhagen",
     ) -> dict[str, Any]:
         try:
@@ -139,10 +140,24 @@ def register_date_normalizer_tool(registry: ToolRegistry) -> None:
 
 
 def _safe_duration_days(
-    duration_days: int | None,
+    duration_days: Any,
     default: int,
 ) -> int:
     if duration_days is None:
+        return default
+
+    if isinstance(duration_days, str):
+        cleaned = duration_days.strip().lower()
+
+        if cleaned in {"", "null", "none", "unknown"}:
+            return default
+
+        if cleaned.isdigit():
+            duration_days = int(cleaned)
+        else:
+            return default
+
+    if not isinstance(duration_days, int):
         return default
 
     return max(1, min(duration_days, 60))
